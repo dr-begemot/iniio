@@ -14,5 +14,16 @@ typedef struct ini_t ini_t;
 
 ini_t*  ini_load (const char *filename);
 void    ini_free (ini_t *ini);
+int ini_save (ini_t *ini, const char *filename);
+
+void ini_print (ini_t *ini);
+
+const char* ini_get_string (ini_t *ini, const char *section_name, const char *key_name, const char *def_val);
+int ini_get_int (ini_t *ini, const char *section_name, const char *key_name, int def_val);
+int ini_get_bool (ini_t *ini, const char *section_name, const char *key_name, int def_val);
+
+void ini_set_string (ini_t *ini, const char *section_name, const char *key_name, const char *val);
+void ini_set_int (ini_t *ini, const char *section_name, const char *key_name, int val);
+void ini_set_bool (ini_t *ini, const char *section_name, const char *key_name, int val);
 
 #endif
