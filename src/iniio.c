@@ -124,10 +124,10 @@ ini_save (ini_t *ini, const char *filename) {
     if (ini->comment)
         fprintf(f, "%s", ini->comment);
     while (section) {
-        fprintf(f, "[%s]%s", section->name, /*section->comment ? section->comment :*/ "\n");
+        fprintf(f, "[%s]%s", section->name, section->comment ? section->comment : "~\n");
         key = section->keys;
         while (key) {
-            fprintf(f, "%s=%s%s", key->name, key->value ? key->value : "", /*key->comment ? key->comment :*/ "\n");
+            fprintf(f, "%s=%s%s", key->name, key->value ? key->value : "", key->comment ? key->comment : "~\n");
             key = key->next;
         }
         section = section->next;
@@ -274,17 +274,24 @@ find_or_create_section_span (ini_t * ini, const char *section_name, const char *
     return section ? section : create_section_span (ini, section_name, section_name_end);
 }
 
-static void
-add_key (ini_section_t *section, ini_key_t *key) {
-    if (!section->keys) {
-        section->keys = key;
-        return;
-    }
+static ini_key_t*
+get_section_last_key (ini_section_t *section) {
+    if (!section->keys)
+        return NULL;
     ini_key_t *end = section->keys;
     while (end->next) {
         end = end->next;
     }
-    end->next = key;
+    return end;
+}
+
+static void
+add_key (ini_section_t *section, ini_key_t *key) {
+    ini_key_t *end = get_section_last_key (section);
+    if (!end)
+        section->keys = key;
+    else
+        end->next = key;
 }
 
 static ini_key_t *
@@ -436,11 +443,11 @@ discard_line (const char *p) {
 
 static const char *
 trim (const char *p) {
-    while (*p && (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')) {
-        if (*p == '\n') // new line
-            return NULL;
+    while (*p && (*p == ' ' || *p == '\t' || *p == '\r')) {
         p++;
     }
+    if (*p == '\n') // new line
+        return NULL;
     return p;
 }
 
@@ -505,7 +512,7 @@ parse_data (ini_t * ini, const char *data) {
         next = get_ini_string (p, &begin, &end);
         if (!next)
             goto goto_discard_line;
-        printf ("symbol pos %zu\n", begin-data);
+        printf ("symbol pos %zu\n", begin - data);
         switch (*begin) {
         case '[':
             printf ("[:\n");
@@ -514,9 +521,10 @@ parse_data (ini_t * ini, const char *data) {
                 goto goto_discard_line;
             stop = 0;
             next = get_ini_string (next, &stop, NULL);
-            if (*stop == ']')
+            if (*stop == ']') {
                 current = find_or_create_section_span (ini, begin, end);
-            else
+                last_key = get_section_last_key (current);
+            } else
                 goto goto_discard_line;
             break;
         case ',':
@@ -533,25 +541,24 @@ parse_data (ini_t * ini, const char *data) {
                     current = create_section (ini, "");
                 last_key = find_or_create_key_span (current, begin, end);
 
-              printf ("value pos %zu\n", next-data);
-          next = get_ini_string (next, &value, &value_end);
+                printf ("value pos %zu\n", next - data);
+                next = get_ini_string (next, &value, &value_end);
                 if (next) {
                     set_key_span (last_key, value, value_end);
-                }
-                else
+                } else
                     goto goto_discard_line;
             } else
-                goto goto_discard_span;
+                goto goto_discard_line;//goto_discard_span;
         }
-        printf ("next pos %zu\n", next-data);
+        printf ("next pos %zu\n", next - data);
         p = next;
         continue;
-goto_discard_span:
-        printf ("discard_span\n");
-        comment = p;
-        p = next;
-        add_comment_span (ini, current, last_key, comment, p - 1);
-        continue;
+// goto_discard_span:
+//         printf ("discard_span\n");
+//         comment = p;
+//         p = next;
+//         add_comment_span (ini, current, last_key, comment, p - 1);
+//         continue;
 goto_discard_line:
         printf ("discard_line\n");
         comment = p;
