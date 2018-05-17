@@ -148,10 +148,10 @@ ini_print (ini_t *ini) {
     if (ini->comment)
         printf("%s", ini->comment);
     while (section) {
-        printf("[%s]%s", section->name, section->comment ? section->comment : "\n");
+        printf("[%s]%s", section->name, /*section->comment ? section->comment :*/ "\n");
         key = section->keys;
         while (key) {
-            printf("%s=%s%s", key->name, key->value ? key->value : "", key->comment ? key->comment : "\n");
+            printf("%s=%s%s", key->name, key->value ? key->value : "", /*key->comment ? key->comment :*/ "\n");
             key = key->next;
         }
         section = section->next;
@@ -195,7 +195,7 @@ strcmpci_span(const char *a, const char *b, const char *b_end) {
     }
 }
 
-void
+static void
 add_section (ini_t * ini, ini_section_t *section) {
     if (!ini->sections) {
         ini->sections = section;
@@ -274,7 +274,7 @@ find_or_create_section_span (ini_t * ini, const char *section_name, const char *
     return section ? section : create_section_span (ini, section_name, section_name_end);
 }
 
-void
+static void
 add_key (ini_section_t *section, ini_key_t *key) {
     if (!section->keys) {
         section->keys = key;
@@ -436,7 +436,7 @@ discard_line (const char *p) {
 
 static const char *
 trim (const char *p) {
-    while (*p && (*p == ' ' || *p == '\t' || *p == '\r')) {
+    while (*p && (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')) {
         if (*p == '\n') // new line
             return NULL;
         p++;
@@ -505,7 +505,7 @@ parse_data (ini_t * ini, const char *data) {
         next = get_ini_string (p, &begin, &end);
         if (!next)
             goto goto_discard_line;
-
+        printf ("symbol pos %zu\n", begin-data);
         switch (*begin) {
         case '[':
             printf ("[:\n");
@@ -533,7 +533,8 @@ parse_data (ini_t * ini, const char *data) {
                     current = create_section (ini, "");
                 last_key = find_or_create_key_span (current, begin, end);
 
-                next = get_ini_string (next, &value, &value_end);
+              printf ("value pos %zu\n", next-data);
+          next = get_ini_string (next, &value, &value_end);
                 if (next) {
                     set_key_span (last_key, value, value_end);
                 }
@@ -542,6 +543,7 @@ parse_data (ini_t * ini, const char *data) {
             } else
                 goto goto_discard_span;
         }
+        printf ("next pos %zu\n", next-data);
         p = next;
         continue;
 goto_discard_span:
